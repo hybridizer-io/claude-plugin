@@ -2,35 +2,47 @@
 
 End-to-end flow from `dotnet build` to a runnable satellite DLL.
 
-## Install location
+## Install the Hybridizer CLI
 
-Hybridizer 1.0 is shipped as a `.NET` executable. A canonical install (Linux/WSL):
+Hybridizer ships as the **`Hybridizer` NuGet tool** (https://www.nuget.org/packages/Hybridizer). Three install shapes:
 
+| Shape | Install command | Invocation | When to use |
+|---|---|---|---|
+| **Global tool** | `dotnet tool install --global Hybridizer` | `hybridizer` (in `PATH`) | One install, all repos. Easiest for a dev machine. |
+| **Local tool** | `dotnet new tool-manifest && dotnet tool install Hybridizer` | `dotnet hybridizer` (after `dotnet tool restore`) | Tool version pinned per-repo via `.config/dotnet-tools.json`. Required for reproducible CI builds. |
+| **Project template** | `dotnet new install Hybridizer.App.Template` then `dotnet new hybridizer-app -n MyProject` | `dotnet hybridizer` (template installs the local tool for you) | Starting a fresh project — wires manifest, MSBuild targets, and a sample kernel in one shot. |
+
+The build runtime (CUDA headers, OMP runtime source, builtins XML) ships inside the NuGet package — the tool resolves them automatically. You don't normally need to point `$(HybridizerIncludes)` anywhere; only override if you have a custom build of the transcoder.
+
+## License-gated flavors
+
+Run:
+
+```bash
+hybridizer --display-license-details        # global tool
+# or
+dotnet hybridizer --display-license-details # local tool
 ```
-/mnt/d/hybridizer-software-suite/publish/MAIN/
-├── Hybridizer.Application      (the transcoder CLI — what you invoke from MSBuild)
-├── includes/                   (hybridizer.cuda.cuh, hybridizer.omp.h, .builtins XMLs, …)
-└── sources/hybridizer.omp.cpp  (OMP runtime, linked into the OMP satellite)
-```
 
-`Hybridizer.Application` is the **standalone full-edition transcoder** — emits real `.cu` / `.cpp` source files. **Do not use the `hybridizer` dotnet global tool from nuget.org** — that's the BASIC/JIT edition, which embeds a cubin blob instead of emitting source. If `hybridizer.generated.cpp` starts with `char __hybridizer_cubin_module_data[]`, the BASIC tool ran by mistake. Fix the toolchain path, not the flags.
+The output reports which flavors are licensed (subset of CUDA, OMP, HIP, AVX, AVX2, AVX512). Pass only those to `--flavors`; anything else fails at transcode time. Do this once at scaffold and trust it for the session.
 
-Drop these flags if they appear in your build (they're BASIC-only): `--jit-cuda-version`, `--jit-compil-options`, `--additional-jit-headers`, `--nvrtc`.
+## `Directory.Build.props` — declare the invocation once
 
-## `Directory.Build.props` — declare the tool once
-
-Put the path in a `Directory.Build.props` at the repo root. One source of truth, inherited by every project:
+Put the CLI invocation in a `Directory.Build.props` at the repo root. One source of truth, inherited by every project:
 
 ```xml
 <Project>
   <PropertyGroup>
-    <HybridizerTool>/mnt/d/hybridizer-software-suite/publish/MAIN/Hybridizer.Application</HybridizerTool>
-    <HybridizerIncludes>/mnt/d/hybridizer-software-suite/publish/MAIN/includes</HybridizerIncludes>
+    <!-- "hybridizer" for global tool, "dotnet hybridizer" for local tool,
+         or an absolute path for a custom standalone build. -->
+    <HybridizerTool>hybridizer</HybridizerTool>
   </PropertyGroup>
 </Project>
 ```
 
 Then in each project's `.csproj`, invoke via a plain `<Exec>` — **no custom MSBuild Task, no `UsingTask`, no abstraction layer**. Direct `Exec` keeps the command visible and debuggable; anyone can copy-paste it into a terminal.
+
+**Quoting:** invoke `<Exec Command="$(HybridizerTool) …" />` without quotes around `$(HybridizerTool)` so that `dotnet hybridizer` (which contains a space) is split into two argv entries. If the user picks the "custom path" install (single binary path with no spaces), unquoted still works.
 
 ## Per-project pipeline order
 
@@ -60,7 +72,7 @@ Keep `Directory.Build.targets` for shared targets (CUDA-version detection, GPU-a
 Full CLI signature:
 
 ```
-Hybridizer.Application \
+$(HybridizerTool) \
   --dll-fullpaths <assembly.dll>[;<asm2.dll>] \
   --flavors CUDA[;OMP;HIP;AVX;AVX2;AVX512] \
   --working-directory <out-dir> \
@@ -71,7 +83,7 @@ Hybridizer.Application \
   [--lines-per-file N]
 ```
 
-Supported flavors: **CUDA, OMP, HIP, AVX, AVX2, AVX512**. There's also a JAVA wrapper-generation mode (`--java`).
+Supported flavors: **CUDA, OMP, HIP, AVX, AVX2, AVX512** (subject to license — see "License-gated flavors" above). There's also a JAVA wrapper-generation mode (`--java`).
 
 **Builtins file differs per flavor:**
 
@@ -92,7 +104,7 @@ Both live in `$(HybridizerIncludes)`. Pass by absolute path to be safe; the tool
 
 **`generated-omp/`**: same structure, rollup is `hybridizer.all.omp.cpp`. Compile that one with `g++`.
 
-**Side artifacts at project root** (created by `Hybridizer.Application` during transcoding): `hybridizer.cuda.def`, `hybridizer.omp.def` — Windows-style symbol export lists. Add `hybridizer.*.def` to `.gitignore`.
+**Side artifacts at project root** (created by the Hybridizer transcoder): `hybridizer.cuda.def`, `hybridizer.omp.def` — Windows-style symbol export lists. Add `hybridizer.*.def` to `.gitignore`.
 
 ## Working `nvcc` invocation (Linux, sm_120)
 
@@ -145,4 +157,3 @@ Without this, `SatelliteLoader` (which searches `Assembly.GetExecutingAssembly()
 - Host-side launch idiom: [host-launch.md](host-launch.md)
 - Device-side language subset: [device-code.md](device-code.md)
 - Profiling the resulting binary: [perf-tuning.md](perf-tuning.md)
-- The standalone-vs-BASIC distinction in [gotchas.md](gotchas.md)

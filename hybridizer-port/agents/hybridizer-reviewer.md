@@ -46,7 +46,7 @@ If the diff is large (>500 lines changed), summarise the diff first and pick the
 ### 5. Build / infrastructure
 
 - **`<HybridizerTool>` declared inline in a `.csproj`** instead of `Directory.Build.props`. Soft finding — works, but loses the single-source-of-truth property.
-- **BASIC/JIT flags present** (`--jit-cuda-version`, `--jit-compil-options`, `--additional-jit-headers`, `--nvrtc`). Means a previous edit assumed the dotnet-tool BASIC edition. Drop them.
+- **`--flavors` includes a flavor not in `--display-license-details`.** Hard fail at transcode. Either the user needs a wider license or the `.csproj` should drop that flavor. Run the license check and report what's actually available.
 - **Both rollup AND per-type `.cu` files in the `nvcc` command line.** Hard fail — double-defines every symbol. Compile only the rollup.
 - **`$(MSBuildProjectName)` in output paths** when the project has an `<AssemblyName>` override. Use `$(TargetName)`.
 - **xUnit tests parallelised** in a project that exercises Hybridizer kernels. Hard fail at runtime — corrupts `NativeSerializer`'s dictionary. Need `parallelizeAssembly: false`.

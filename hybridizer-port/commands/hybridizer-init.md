@@ -9,53 +9,79 @@ If `$ARGUMENTS` is non-empty, treat it as the target project name (the `.csproj`
 
 ## What to do
 
-1. **Verify prerequisites:**
-   - `Hybridizer.Application` reachable at the path declared in `$(HybridizerTool)` (default `/mnt/d/hybridizer-software-suite/publish/MAIN/Hybridizer.Application`).
-   - `nvcc -V` succeeds (skip if the user only wants OMP).
-   - `nvidia-smi` reports a compute capability (skip if OMP-only).
-   - If any prerequisite is missing, stop and report. Don't scaffold against a broken toolchain.
+1. **Locate or install the Hybridizer CLI.** Detect in this order:
+   - `which hybridizer` → global tool. Use the invocation `hybridizer`.
+   - `.config/dotnet-tools.json` lists `hybridizer` → local tool. Use `dotnet hybridizer` (run `dotnet tool restore` first if needed).
+   - Neither → **ask the user** which install path to take:
+     - **Quickest** — `dotnet new install Hybridizer.App.Template` then `dotnet new hybridizer-app -n <Project>`. Generates a project with the tool manifest, MSBuild targets, and a sample kernel already wired. Use this when the user has no existing project they need to keep.
+     - **Global tool** — `dotnet tool install --global Hybridizer`. Adds `hybridizer` to `PATH` system-wide.
+     - **Local tool** — `dotnet new tool-manifest && dotnet tool install Hybridizer`. Adds `.config/dotnet-tools.json` to the current repo; invoke as `dotnet hybridizer`.
+     - **Custom path** — user has a `Hybridizer.Application` binary somewhere else (e.g. an internal Hybridizer build). They give us the absolute path; treat that as `$(HybridizerTool)`.
 
-2. **Create `Directory.Build.props` at the repo root** if absent. It declares the tool paths as MSBuild properties, inherited by every project:
+   Record the resolved invocation (e.g. `hybridizer` or `dotnet hybridizer` or `/path/to/Hybridizer.Application`) — this becomes the value of `$(HybridizerTool)` in step 3.
+
+2. **Read the license to learn supported flavors:**
+
+   ```bash
+   <invocation-from-step-1> --display-license-details
+   ```
+
+   Note the licensed flavors (CUDA, OMP, HIP, AVX, AVX2, AVX512). Only scaffold targets for flavors the user has licensed AND wants to use. Don't wire CUDA targets for an OMP-only license — the build will fail at transcode time.
+
+   Also check the host toolchain:
+   - `nvcc -V` succeeds (skip if CUDA isn't licensed/wanted).
+   - `nvidia-smi --query-gpu=compute_cap --format=csv,noheader` reports a compute capability (skip if CUDA isn't licensed/wanted).
+   - `g++ -fopenmp -dM -E -x c++ - < /dev/null | grep _OPENMP` confirms OMP support (skip if OMP isn't licensed/wanted).
+
+   If a required host tool is missing, stop and report. Don't scaffold against a broken toolchain.
+
+3. **Create `Directory.Build.props` at the repo root** if absent. It declares the Hybridizer invocation as MSBuild properties, inherited by every project:
 
    ```xml
    <Project>
      <PropertyGroup>
-       <HybridizerTool>/mnt/d/hybridizer-software-suite/publish/MAIN/Hybridizer.Application</HybridizerTool>
-       <HybridizerIncludes>/mnt/d/hybridizer-software-suite/publish/MAIN/includes</HybridizerIncludes>
+       <!-- One of: "hybridizer" (global tool), "dotnet hybridizer" (local tool),
+            or an absolute path to a Hybridizer.Application binary. -->
+       <HybridizerTool>hybridizer</HybridizerTool>
+       <!-- Optional: only set if the user has a custom includes directory.
+            The NuGet tool resolves includes automatically; leave HybridizerIncludes
+            unset and let the tool find them, unless the user reports include errors. -->
      </PropertyGroup>
    </Project>
    ```
 
-   If it already exists, merge the two properties in rather than overwriting.
+   If `Directory.Build.props` already exists, merge in `<HybridizerTool>` rather than overwriting.
 
-3. **Create `Directory.Build.targets` at the repo root** with the shared `DetectCudaVersion` / `DetectGPUArch` / `CompileCUDA` / `CompileOMP` targets. See `skills/hybridizer-port/references/build-pipeline.md` for the verified target bodies. The pattern auto-detects `$(CUDAVersion)` and `$(GenCodeArg)` so each project doesn't have to.
+4. **Create `Directory.Build.targets` at the repo root** with the shared `DetectCudaVersion` / `DetectGPUArch` / `CompileCUDA` / `CompileOMP` targets. See `hybridizer-port/skills/hybridizer-port/references/build-pipeline.md` for the verified target bodies. The pattern auto-detects `$(CUDAVersion)` and `$(GenCodeArg)` so each project doesn't have to.
 
-4. **Edit the target `.csproj`:**
-   - Add `<CompileCUDA>enable</CompileCUDA>` (and/or `<CompileOMP>enable</CompileOMP>`) to a `<PropertyGroup>`.
+5. **Edit the target `.csproj`:**
+   - Add `<CompileCUDA>enable</CompileCUDA>` (and/or `<CompileOMP>enable</CompileOMP>`) to a `<PropertyGroup>` — only for flavors confirmed licensed in step 2.
    - Add `<PackageReference Include="Hybridizer.Runtime.CUDAImports" Version="3.4.0" />`.
-   - Add a `GenerateCUDA` `<Target>` that `<Exec>`s `"$(HybridizerTool)"` with the correct flags. Do **not** include the BASIC-edition flags (`--jit-cuda-version`, `--jit-compil-options`, `--additional-jit-headers`, `--nvrtc`).
+   - Add a `GenerateCUDA` `<Target>` that `<Exec>`s `$(HybridizerTool)` with the correct flags (no quotes around `$(HybridizerTool)` — it might be `dotnet hybridizer` which needs to split on the space).
    - If the project has `<AssemblyName>`, use `$(TargetName)` in output paths, not `$(MSBuildProjectName)`.
 
-5. **Add `SatelliteLoader.cs`** to the project (copy from `/mnt/d/hybridizer-basic-samples/src/0.Utils/Utilities/SatelliteLoader.cs` if available, otherwise inline the body).
+6. **Add `SatelliteLoader.cs`** to the project. If the user installed via `Hybridizer.App.Template`, a working copy is already in the generated project — reuse it. Otherwise grab one from the hybridizer-basic-samples repo (`src/0.Utils/Utilities/SatelliteLoader.cs` in https://github.com/hybridizer-io/hybridizer-basic-samples) or inline the body from [host-launch.md](../skills/hybridizer-port/references/host-launch.md).
 
-6. **Add a hello-world `[EntryPoint]`** — a vector-add or sum kernel — plus a `Main` that calls it with `runner.Wrap(...)` and asserts the output. Keep the surface minimal; the goal is to prove the round-trip, not demonstrate features. Use `Parallel.For` in the body so the same code works under managed dispatch and OMP.
+7. **Add a hello-world `[EntryPoint]`** — a vector-add or sum kernel — plus a `Main` that calls it with `runner.Wrap(...)` and asserts the output. Keep the surface minimal; the goal is to prove the round-trip, not demonstrate features. Use `Parallel.For` in the body so the same code works under managed dispatch and OMP. If the user installed via the template, an example kernel is already in the generated `Program.cs`; adapt that instead of inventing a new one.
 
-7. **Add to `.gitignore`:**
+8. **Add to `.gitignore`:**
    - `generated-cuda/`
    - `generated-omp/`
    - `hybridizer.*.def`
    - `bin/` and `obj/` if not already.
 
-8. **Build:**
+9. **Build:**
    ```
    dotnet build -c Release
    ```
    Confirm `bin/<config>/<tfm>/<projname>_CUDA.dll` (and/or `lib<projname>_OMP.so`) appears.
 
-9. **Run the hello-world** and confirm it prints the expected output.
+10. **Run the hello-world** and confirm it prints the expected output.
 
-10. **Report:**
+11. **Report:**
     - Files added / modified.
+    - Hybridizer invocation chosen (`hybridizer` / `dotnet hybridizer` / custom path).
+    - Licensed flavors reported by `--display-license-details`.
     - Whether CUDA, OMP, or both were enabled.
     - Whether the smoke-test kernel produced correct output.
     - Next step per the methodology: "port your first real kernel (step 5)."
@@ -63,11 +89,12 @@ If `$ARGUMENTS` is non-empty, treat it as the target project name (the `.csproj`
 ## Don't
 
 - Scaffold if there's already a working Hybridizer integration — instead inspect it, report findings, and ask what the user actually wants changed.
-- Use the BASIC `hybridizer` dotnet global tool.
+- Scaffold a flavor the license doesn't cover. `--display-license-details` is the source of truth.
 - Add a custom MSBuild `<UsingTask>` for invoking Hybridizer. A plain `<Exec>` is the maintained pattern; custom Tasks add maintenance surface for no benefit.
+- Hardcode an absolute path to `Hybridizer.Application` unless the user explicitly chose the "custom path" install option in step 1. The NuGet tool is the default.
 
 ## Reference
 
-- `skills/hybridizer-port/references/build-pipeline.md` — full target bodies, CLI flags, `nvcc` and `g++` invocations.
-- `skills/hybridizer-port/references/host-launch.md` — for the `SatelliteLoader` + `HybRunner` smoke-test pattern.
-- `skills/hybridizer-port/references/methodology.md` — for the step-4 positioning.
+- `hybridizer-port/skills/hybridizer-port/references/build-pipeline.md` — full target bodies, CLI flags, `nvcc` and `g++` invocations.
+- `hybridizer-port/skills/hybridizer-port/references/host-launch.md` — for the `SatelliteLoader` + `HybRunner` smoke-test pattern.
+- `hybridizer-port/skills/hybridizer-port/references/methodology.md` — for the step-4 positioning.

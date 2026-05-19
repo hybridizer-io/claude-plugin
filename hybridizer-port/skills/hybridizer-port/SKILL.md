@@ -1,7 +1,7 @@
 ---
 name: hybridizer-port
 description: Migration assistant for porting C# code to CUDA via Hybridizer. Knows the attribute set, build pipeline, device-code restrictions, host launch idioms, kernel patterns (reductions, cooperative blocks, warp shuffle, CUB), CUDA graph capture, performance tuning, and a curated list of gotchas to avoid.
-when_to_use: When the user is porting C# code to GPU with Hybridizer, debugging Hybridizer transcode/build errors, writing or reviewing kernels marked [Kernel]/[EntryPoint]/[IntrinsicFunction], integrating Hybridizer.Application into a build, working with HybRunner / SatelliteLoader / FloatResidentArray, or profiling CUDA performance from a Hybridizer-built binary.
+when_to_use: When the user is porting C# code to GPU with Hybridizer, debugging Hybridizer transcode/build errors, writing or reviewing kernels marked [Kernel]/[EntryPoint]/[IntrinsicFunction], integrating the `Hybridizer` NuGet tool into a build, working with HybRunner / SatelliteLoader / FloatResidentArray, or profiling CUDA performance from a Hybridizer-built binary.
 allowed-tools: Read, Glob, Grep, Bash(dotnet *), Bash(nvcc *), Bash(nvidia-smi *), Bash(git status), Bash(git diff *), Bash(git log *)
 ---
 
@@ -18,7 +18,7 @@ This file is the index. For any specific topic, read the matching file under `re
 | The 8-step migration plan (tests → profile → refactor → infra → first kernel → cut memcpies → GPU profile → tune) | [references/methodology.md](references/methodology.md) |
 | Attributes: `[Kernel]`, `[EntryPoint]`, `[IntrinsicFunction]`, `[HybridTemplateConcept]`, `[HybridConstant]`, `[In]`/`[Out]`, `[LaunchBounds]`, `[HybridizerIgnore]` | [references/attributes.md](references/attributes.md) |
 | What runs on the GPU: language subset, `threadIdx`/`__syncthreads`, `SharedMemoryAllocator`, atomic intrinsics, missing `MathF`/`Half` builtins | [references/device-code.md](references/device-code.md) |
-| Build pipeline: `Hybridizer.Application` CLI, `$(HybridizerTool)` property, MSBuild target order, flavors (CUDA/OMP/HIP/AVX*) | [references/build-pipeline.md](references/build-pipeline.md) |
+| Build pipeline: NuGet `Hybridizer` tool install shapes, `--display-license-details`, `$(HybridizerTool)` property, MSBuild target order, flavors (CUDA/OMP/HIP/AVX*) | [references/build-pipeline.md](references/build-pipeline.md) |
 | Host launch: `HybRunner`, `SatelliteLoader.Load`, `SetDistrib`/`Wrap`, streams, `FloatResidentArray` init | [references/host-launch.md](references/host-launch.md) |
 | Kernel patterns: cooperative blocks, warp shuffle, CUB BlockReduce, quantized split layout, per-flavor `[EntryPoint]` split | [references/kernel-patterns.md](references/kernel-patterns.md) |
 | Reduction skeleton + 4 op-delivery styles + why OMP needs a separate body | [references/reductions.md](references/reductions.md) |
@@ -39,13 +39,13 @@ This file is the index. For any specific topic, read the matching file under `re
 
 - **hybridizer-porter** — analyses a C# function and proposes a kernel shape (parallelism, atomics, shared memory).
 - **hybridizer-reviewer** — checks a candidate kernel for the known gotchas before you spend time compiling.
-- **hybridizer-builder** — invokes `Hybridizer.Application` correctly and parses its output into actionable errors.
+- **hybridizer-builder** — discovers the Hybridizer CLI (global tool / local tool / custom path), reads `--display-license-details` for supported flavors, invokes the transcoder correctly, and parses its output into actionable errors.
 
 ## House rules (read these even if you skip everything else)
 
 1. **`MathF.*` does not exist in Hybridizer's builtins.** Use `(float)System.Math.X(double)` in kernels. `MathF.*` aborts the transcoder with error `0X60AC` and emits empty `.cu` files.
 2. **Do not use `AtomicExpr.apply`** — flagged buggy by the maintainer. Use `[IntrinsicFunction("atomicAdd")]` / `("atomicMax")` stubs over a static `Atomics` class.
-3. **Always use `Hybridizer.Application` (the standalone)** — never the BASIC/JIT `dotnet tool`. Declare the path in `Directory.Build.props` as `$(HybridizerTool)` and invoke via a plain `<Exec>`.
+3. **Install Hybridizer from NuGet and let `--display-license-details` decide the flavors.** The `Hybridizer` NuGet tool (global, local, or via `Hybridizer.App.Template`) is the supported install. Set `$(HybridizerTool)` to `hybridizer` (global) or `dotnet hybridizer` (local) in `Directory.Build.props` and invoke via a plain `<Exec>`. Only pass `--flavors` that the license reports as available.
 4. **Initialise `FloatResidentArray` eagerly** — touch `DevicePointer` and set `Status = HostNeedsRefresh` before the first kernel writes to it. Otherwise the kernel reads uninitialised device memory.
 5. **Perf regressions between steps 3 and 6 are expected** — only investigate *functional* regressions during refactor. Perf comes back at steps 7 and 8.
 6. **Garbled CUDA output is usually a stale `.dll` satellite.** Clean rebuild before reading the kernel.

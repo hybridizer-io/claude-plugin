@@ -1,6 +1,6 @@
 # Attributes
 
-All attributes live in `Hybridizer.Runtime.CUDAImports` (`/mnt/d/hybridizer-runtime-cudaimports/src/API.cs` in a typical install).
+All attributes live in the `Hybridizer.Runtime.CUDAImports` NuGet package (added to your project via `<PackageReference>`).
 
 ## Kernel markers
 

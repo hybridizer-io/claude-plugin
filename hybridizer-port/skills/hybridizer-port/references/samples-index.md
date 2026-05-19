@@ -2,29 +2,23 @@
 
 Where to find authoritative examples and documentation. Read the matching sample first when starting on a new pattern.
 
-## Hybridizer install layout
+## Hybridizer install (NuGet)
 
-Canonical Linux/WSL install:
+Hybridizer ships as the `Hybridizer` NuGet tool. Pick the install shape that matches the workflow:
 
-```
-/mnt/d/hybridizer-software-suite/publish/MAIN/
-├── Hybridizer.Application       (the transcoder CLI)
-├── includes/
-│   ├── hybridizer.cuda.cuh
-│   ├── hybridizer.math.cuh
-│   ├── hybridizer.omp.h
-│   ├── hybridizer.exceptionthrow.cuda.cuh
-│   ├── hybridizer.cuda.builtins
-│   └── hybridizer.c.builtins
-└── sources/
-    └── hybridizer.omp.cpp        (OMP runtime — linked into the OMP satellite)
-```
+| Shape | Install | Invocation |
+|---|---|---|
+| Global tool | `dotnet tool install --global Hybridizer` | `hybridizer` |
+| Local tool | `dotnet new tool-manifest && dotnet tool install Hybridizer` | `dotnet hybridizer` |
+| Template | `dotnet new install Hybridizer.App.Template && dotnet new hybridizer-app -n MyProject` | `dotnet hybridizer` (manifest is generated) |
 
-`nvcc` 13.x at `/usr/local/cuda/bin/nvcc` is the verified host toolchain (driver 596.36, CUDA runtime 13.2). For OMP, `g++ -fopenmp` plus the `hybridizer.omp.cpp` runtime source.
+Runtime files (includes, OMP runtime source, builtins XML) ship inside the NuGet package; the tool resolves them automatically. Run `hybridizer --display-license-details` to see which flavors are licensed before scaffolding.
+
+Host toolchain: `nvcc` 13.x at `/usr/local/cuda/bin/nvcc` is the verified CUDA chain; `g++ -fopenmp` for OMP.
 
 ## Basic samples repo
 
-Cloned to `/mnt/d/hybridizer-basic-samples` on a typical setup. The source of truth for Hybridizer-idiomatic project structure and the canonical patterns.
+Available at https://github.com/hybridizer-io/hybridizer-basic-samples — the source of truth for Hybridizer-idiomatic project structure and the canonical patterns.
 
 | Sample | Teaches |
 |---|---|
@@ -35,8 +29,6 @@ Cloned to `/mnt/d/hybridizer-basic-samples` on a typical setup. The source of tr
 | `src/6.Advanced/InterfacesReduction` | `ILocalReductor` instance arg; `[Kernel]` on interface + impls; virtual calls via function pointers |
 | `src/6.Advanced/GenericReduction` | `[HybridTemplateConcept]` + struct reductors + `[HybridRegisterTemplate]` — zero-overhead dispatch. Has the canonical `Atomics` helper with `[IntrinsicFunction("atomicAdd")]` / `("atomicMax")` stubs |
 | `src/6.Advanced/GenericFunctions` | User-defined generic `Vector` class (not `System.Numerics.Vector<T>`) |
-
-⚠ The samples repo uses the `hybridizer` **dotnet global tool** (BASIC / Essentials edition v7.5.1) — not the standalone `Hybridizer.Application`. The csproj invocations include JIT flags (`--jit-cuda-version`, `--jit-compil-options`). For a real project you should use the standalone full edition; see [build-pipeline.md](build-pipeline.md) for why and how.
 
 The `Directory.Build.targets` shipped with the samples does the `nvcc -V` → `$(CUDAVersion)` and `nvidia-smi --query-gpu=compute_cap` → `$(GenCodeArg)` auto-detection that any real project also wants. Copy it (or its substance) and adapt.
 
@@ -50,8 +42,7 @@ The wiki has been the canonical reference for attribute semantics, builtins file
 
 ## NuGet runtime package
 
-- `Hybridizer.Runtime.CUDAImports` v3.4.0 — the runtime API: attributes, `cuda.*` bindings, `FloatResidentArray`, `cooperative_groups`, `CUDAIntrinsics`.
-- Source for the API surface lives at `/mnt/d/hybridizer-runtime-cudaimports/src/API.cs` if you have it locally; otherwise inspect the NuGet package contents.
+- `Hybridizer.Runtime.CUDAImports` v3.4.0 — the runtime API: attributes, `cuda.*` bindings, `FloatResidentArray`, `cooperative_groups`, `CUDAIntrinsics`. Inspect the NuGet package contents to read the API surface.
 
 ## Builtins XML
 
@@ -67,15 +58,17 @@ You can ship a custom `.builtins` next to the `.csproj` and pass it via `--built
 Quick checks before invoking the toolchain:
 
 ```bash
-# Hybridizer transcoder present?
-ls -la /mnt/d/hybridizer-software-suite/publish/MAIN/Hybridizer.Application
+# Hybridizer transcoder present and licensed?
+hybridizer --display-license-details                # global tool
+# or
+dotnet hybridizer --display-license-details         # local tool
 
-# nvcc + driver versions
+# nvcc + driver versions (CUDA flavor)
 nvcc -V
 nvidia-smi --query-gpu=compute_cap --format=csv,noheader
 
-# OMP runtime source available?
-ls -la /mnt/d/hybridizer-software-suite/publish/MAIN/sources/hybridizer.omp.cpp
+# OMP support (OMP flavor)
+g++ -fopenmp -dM -E -x c++ - < /dev/null | grep _OPENMP
 ```
 
 ## Related

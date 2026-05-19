@@ -5,7 +5,7 @@ A Claude Code plugin that helps migrate existing C# codebases to CUDA using [Hyb
 The plugin bundles:
 
 - **A `hybridizer-port` skill** — Hybridizer attributes, device-code restrictions, the build pipeline, host launch idioms, kernel patterns (reductions, cooperative blocks, warp shuffle, CUB), CUDA graph capture, perf tuning, and a curated gotchas list.
-- **Three subagents** — `hybridizer-porter` (analyse a C# function and propose a kernel shape), `hybridizer-reviewer` (check a diff against the gotchas list), `hybridizer-builder` (invoke `Hybridizer.Application` and parse errors).
+- **Three subagents** — `hybridizer-porter` (analyse a C# function and propose a kernel shape), `hybridizer-reviewer` (check a diff against the gotchas list), `hybridizer-builder` (locate the Hybridizer CLI via PATH / local tool manifest / user prompt, read `--display-license-details` for licensed flavors, invoke the transcoder, and parse errors).
 - **Slash commands** — `/hybridizer-init`, `/hybridizer-port`, `/hybridizer-review`, `/hybridizer-profile`, `/hybridizer-log`.
 - **An opt-in hook** that appends every porting prompt to `porting-to-hybridizer.md` in your project (off by default; toggle with `/hybridizer-log on`).
 
@@ -36,7 +36,7 @@ git clone https://github.com/hybridizer-io/claude-plugin /path/to/claude-plugin
 
 ## Usage
 
-The skill auto-loads when Claude detects you're working on Hybridizer code (CUDA porting context, references to `[Kernel]`/`[EntryPoint]`, `Hybridizer.Application` build issues, etc.). You can also invoke it explicitly with the slash commands above.
+The skill auto-loads when Claude detects you're working on Hybridizer code (CUDA porting context, references to `[Kernel]`/`[EntryPoint]`, Hybridizer transcoder build issues, etc.). You can also invoke it explicitly with the slash commands above.
 
 To enable the optional porting log:
 

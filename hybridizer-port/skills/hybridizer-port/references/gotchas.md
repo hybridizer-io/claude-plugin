@@ -13,7 +13,7 @@ Hard-won failure modes — each section names the symptom, the cause, and the fi
 **Diagnostic:** when a kernel suddenly fails with `EntryPointNotFoundException`:
 
 1. Check `generated-cuda/<ClassName>.cu` is bigger than ~24 lines.
-2. If empty, run `Hybridizer.Application` manually and grep stderr for `0X60AC`.
+2. If empty, run `$(HybridizerTool)` manually and grep stderr for `0X60AC`.
 3. The error includes the source line — look for `MathF.*` there.
 
 See [device-code.md](device-code.md) for the full treatment.
@@ -77,14 +77,6 @@ See [host-launch.md](host-launch.md).
 ```
 
 Wire it into the test project via `<None Update="xunit.runner.json"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></None>`. Don't switch back to parallel without a thread-safe wrapper around the `HybRunner` singleton.
-
-## Use the standalone `Hybridizer.Application`, not the BASIC/JIT tool
-
-**Symptom:** `hybridizer.generated.cpp` starts with `char __hybridizer_cubin_module_data[]`. You can't read the generated CUDA source, can't tweak it, can't profile it.
-
-**Cause:** the `hybridizer` dotnet global tool (from `nuget.org`) is the BASIC/Essentials edition. It JIT-compiles the kernel via NVRTC and embeds a cubin blob. You get a working satellite but no inspectable source.
-
-**Fix:** point the build at the standalone full edition at `/mnt/d/hybridizer-software-suite/publish/MAIN/Hybridizer.Application`. Drop these BASIC-only flags: `--jit-cuda-version`, `--jit-compil-options`, `--additional-jit-headers`, `--nvrtc`. See [build-pipeline.md](build-pipeline.md).
 
 ## Stale satellite — clean rebuild before debugging the kernel
 
