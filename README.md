@@ -1,6 +1,6 @@
 # hybridizer claude-plugin
 
-A Claude Code plugin that helps migrate existing C# codebases to CUDA using [Altimesh Hybridizer](https://github.com/hybridizer-io/hybridizer-basic-samples).
+A Claude Code plugin that helps migrate existing C# codebases to CUDA using [Hybridizer](https://github.com/hybridizer-io/hybridizer-basic-samples).
 
 The plugin bundles:
 
@@ -15,7 +15,7 @@ The skill is wired with progressive disclosure: `SKILL.md` is short and indexes 
 
 - **Claude Code** (any recent version with plugin / marketplace support).
 - **Python 3** in `PATH` — used only by the optional porting-log hook (`/hybridizer-log on`). The rest of the plugin works without it.
-- **Altimesh Hybridizer** install if you're actually porting code (the plugin's content references it; the plugin itself is install-light).
+- **Hybridizer** install if you're actually porting code (the plugin's content references it; the plugin itself is install-light).
 
 ## Install
 

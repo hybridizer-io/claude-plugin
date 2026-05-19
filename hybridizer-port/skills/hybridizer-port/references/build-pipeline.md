@@ -4,7 +4,7 @@ End-to-end flow from `dotnet build` to a runnable satellite DLL.
 
 ## Install location
 
-Altimesh Hybridizer 1.0 is shipped as a `.NET` executable. A canonical install (Linux/WSL):
+Hybridizer 1.0 is shipped as a `.NET` executable. A canonical install (Linux/WSL):
 
 ```
 /mnt/d/hybridizer-software-suite/publish/MAIN/

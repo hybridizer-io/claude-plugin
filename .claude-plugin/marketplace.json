@@ -8,7 +8,7 @@
     {
       "name": "hybridizer-port",
       "source": "./hybridizer-port",
-      "description": "C# → CUDA porting assistant for Altimesh Hybridizer.",
+      "description": "C# → CUDA porting assistant for Hybridizer.",
       "version": "0.1.0",
       "homepage": "https://github.com/hybridizer-io/claude-plugin",
       "tags": ["cuda", "csharp", "gpu", "hybridizer", "porting"]

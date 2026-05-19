@@ -1,5 +1,5 @@
 {
   "name": "hybridizer-port",
-  "description": "C# → CUDA porting assistant for Altimesh Hybridizer. Encodes the attribute set, build pipeline, host launch idioms, kernel patterns, profiling guidance, gotchas, and an 8-step migration methodology distilled from real Hybridizer ports.",
+  "description": "C# → CUDA porting assistant for Hybridizer. Encodes the attribute set, build pipeline, host launch idioms, kernel patterns, profiling guidance, gotchas, and an 8-step migration methodology distilled from real Hybridizer ports.",
   "version": "0.1.0"
 }

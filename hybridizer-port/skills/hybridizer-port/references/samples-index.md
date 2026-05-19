@@ -42,7 +42,7 @@ The `Directory.Build.targets` shipped with the samples does the `nvcc -V` → `$
 
 ## Hybridizer GitHub wiki
 
-The authoritative external documentation, maintained by the Altimesh team:
+The authoritative external documentation:
 
 → **https://github.com/hybridizer-io/hybridizer-basic-samples/wiki**
 

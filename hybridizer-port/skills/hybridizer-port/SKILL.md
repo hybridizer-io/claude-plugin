@@ -1,13 +1,13 @@
 ---
 name: hybridizer-port
-description: Migration assistant for porting C# code to CUDA via Altimesh Hybridizer. Knows the attribute set, build pipeline, device-code restrictions, host launch idioms, kernel patterns (reductions, cooperative blocks, warp shuffle, CUB), CUDA graph capture, performance tuning, and a curated list of gotchas to avoid.
+description: Migration assistant for porting C# code to CUDA via Hybridizer. Knows the attribute set, build pipeline, device-code restrictions, host launch idioms, kernel patterns (reductions, cooperative blocks, warp shuffle, CUB), CUDA graph capture, performance tuning, and a curated list of gotchas to avoid.
 when_to_use: When the user is porting C# code to GPU with Hybridizer, debugging Hybridizer transcode/build errors, writing or reviewing kernels marked [Kernel]/[EntryPoint]/[IntrinsicFunction], integrating Hybridizer.Application into a build, working with HybRunner / SatelliteLoader / FloatResidentArray, or profiling CUDA performance from a Hybridizer-built binary.
 allowed-tools: Read, Glob, Grep, Bash(dotnet *), Bash(nvcc *), Bash(nvidia-smi *), Bash(git status), Bash(git diff *), Bash(git log *)
 ---
 
 # Hybridizer port
 
-Helps migrate existing C# code to CUDA using Altimesh Hybridizer. The skill encodes the moving parts of a real port: attributes, build pipeline, what does and doesn't compile to device code, how to launch from C#, kernel patterns that actually perform, and the bugs to dodge.
+Helps migrate existing C# code to CUDA using Hybridizer. The skill encodes the moving parts of a real port: attributes, build pipeline, what does and doesn't compile to device code, how to launch from C#, kernel patterns that actually perform, and the bugs to dodge.
 
 ## How to use this skill
 
