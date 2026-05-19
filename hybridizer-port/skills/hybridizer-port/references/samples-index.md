@@ -2,23 +2,27 @@
 
 Where to find authoritative examples and documentation. Read the matching sample first when starting on a new pattern.
 
-## Hybridizer install (NuGet)
+## Hybridizer install (free NuGet tool vs paid standalone)
 
-Hybridizer ships as the `Hybridizer` NuGet tool. Pick the install shape that matches the workflow:
+Two editions:
 
-| Shape | Install | Invocation |
-|---|---|---|
-| Global tool | `dotnet tool install --global Hybridizer` | `hybridizer` |
-| Local tool | `dotnet new tool-manifest && dotnet tool install Hybridizer` | `dotnet hybridizer` |
-| Template | `dotnet new install Hybridizer.App.Template && dotnet new hybridizer-app -n MyProject` | `dotnet hybridizer` (manifest is generated) |
+- **Free `Hybridizer` NuGet tool** — CUDA only, emits cubin + cpp/cu wrapper. Full profiling/debugging/`#line` support. Install:
 
-Runtime files (includes, OMP runtime source, builtins XML) ship inside the NuGet package; the tool resolves them automatically. Run `hybridizer --display-license-details` to see which flavors are licensed before scaffolding.
+  | Shape | Install | Invocation |
+  |---|---|---|
+  | Global tool | `dotnet tool install --global Hybridizer` | `hybridizer` |
+  | Local tool | `dotnet new tool-manifest && dotnet tool install Hybridizer` | `dotnet hybridizer` |
+  | Template | `dotnet new install Hybridizer.App.Template && dotnet new hybridizer-app -n MyProject` | `dotnet hybridizer` (manifest auto-generated) |
+
+- **Paid standalone** — all flavors (CUDA / OMP / HIP / AVX / AVX2 / AVX512), emits readable `.cu` / `.cpp` source. Distributed outside NuGet; invoked via an absolute path to `Hybridizer.Application`.
+
+Run `<invocation> --display-license-details` to see which flavors the install actually supports.
 
 Host toolchain: `nvcc` 13.x at `/usr/local/cuda/bin/nvcc` is the verified CUDA chain; `g++ -fopenmp` for OMP.
 
 ## Basic samples repo
 
-Available at https://github.com/hybridizer-io/hybridizer-basic-samples — the source of truth for Hybridizer-idiomatic project structure and the canonical patterns.
+Available at https://github.com/hybridizer-io/hybridizer-basic-samples — the source of truth for Hybridizer-idiomatic project structure and the canonical patterns. The samples wire the free `Hybridizer` dotnet tool (CUDA-only); the patterns themselves are identical for the paid standalone — only `$(HybridizerTool)` differs.
 
 | Sample | Teaches |
 |---|---|

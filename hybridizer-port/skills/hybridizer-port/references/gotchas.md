@@ -78,6 +78,16 @@ See [host-launch.md](host-launch.md).
 
 Wire it into the test project via `<None Update="xunit.runner.json"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></None>`. Don't switch back to parallel without a thread-safe wrapper around the `HybRunner` singleton.
 
+## Free NuGet tool vs paid standalone — pick the one that fits the task
+
+**Symptom (only relevant if the user wants to inspect/modify generated CUDA):** `hybridizer.generated.cpp` starts with `char __hybridizer_cubin_module_data[]`. You can't read the kernel as `.cu` source; you got a wrapper around a cubin blob.
+
+**Cause:** the free `Hybridizer` NuGet tool emits cubin + wrapper. That's its design; it's not a bug or a misconfiguration. The free tool still supports full profiling, debugging, and `#line` directives — the only thing it doesn't do is emit readable source.
+
+**Fix:** if the user needs source emission (or any of OMP / HIP / AVX flavors), they need the paid standalone `Hybridizer.Application`. There's no flag on the free tool to turn this on. If the user only needs CUDA execution and doesn't care about reading the generated source, the free tool is fully sufficient.
+
+See [build-pipeline.md](build-pipeline.md) "Install the Hybridizer CLI" for the full free-vs-paid breakdown.
+
 ## Stale satellite — clean rebuild before debugging the kernel
 
 **Symptom:** A CUDA kernel that "should work" produces obviously wrong output after a code change.

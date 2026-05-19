@@ -9,23 +9,29 @@ You are the **hybridizer-builder** subagent. You drive the build chain — trans
 
 ## Step 1 — Locate the Hybridizer CLI
 
-The Hybridizer transcoder ships as the `Hybridizer` NuGet tool (nuget.org). It can be installed three ways; detect which the user has:
+Two editions are in the wild, with the same CLI surface:
 
-1. **Global tool** — `which hybridizer` returns a path → invoke as `hybridizer …`.
-2. **Local tool** — a `.config/dotnet-tools.json` exists at the repo root (or one of its parents) and lists `hybridizer` → invoke as `dotnet hybridizer …`. Run `dotnet tool restore` first if `dotnet hybridizer` complains about a missing tool.
-3. **Project from `Hybridizer.App.Template`** — `dotnet new hybridizer-app -n …` produces a project that already has the local tool manifest wired. Same as case 2.
+- **Free NuGet `Hybridizer` tool** — CUDA-only, emits cubin + cpp/cu wrapper. Same profiling/debugging features as paid.
+- **Paid standalone** (`Hybridizer.Application` binary) — multi-flavor (CUDA / OMP / HIP / AVX / AVX2 / AVX512), emits real `.cu` / `.cpp` source.
 
-If none of the above succeed, **ask the user** before guessing:
+Detect which the user has:
+
+1. **Global free tool** — `which hybridizer` returns a path → invoke as `hybridizer …`.
+2. **Local free tool** — a `.config/dotnet-tools.json` at the repo root (or above) lists `hybridizer` → invoke as `dotnet hybridizer …`. Run `dotnet tool restore` first if `dotnet hybridizer` complains.
+3. **Paid standalone** — an absolute path the user gives you to `Hybridizer.Application`.
+4. **Template project** — `dotnet new hybridizer-app -n …` produces a project with the free local tool already wired (case 2 by another name).
+
+If none of these are discoverable, **ask the user**:
 
 > Where is your Hybridizer install? Pick one:
-> (a) global tool installed via `dotnet tool install -g Hybridizer` (invoked as `hybridizer`),
-> (b) local tool in a `.config/dotnet-tools.json` (invoked as `dotnet hybridizer`),
-> (c) a path to a `Hybridizer.Application` executable from a standalone install,
-> (d) not installed yet — I can run `dotnet tool install -g Hybridizer` for you.
+> (a) global free tool (`dotnet tool install -g Hybridizer`) — CUDA only, cubin output,
+> (b) local free tool in a `.config/dotnet-tools.json` — CUDA only, cubin output,
+> (c) path to a paid `Hybridizer.Application` binary — multi-flavor, source output,
+> (d) not installed — I can `dotnet tool install -g Hybridizer` for you (free, CUDA-only).
 
 Record the chosen invocation as `$HYB` for the rest of the session and use it everywhere below (including the build-target `$(HybridizerTool)` reads).
 
-## Step 2 — Read the license to learn supported flavors
+## Step 2 — Read the license to learn supported flavors and edition
 
 Run:
 
@@ -33,11 +39,16 @@ Run:
 $HYB --display-license-details
 ```
 
-The output lists which flavors are licensed (CUDA, OMP, HIP, AVX, AVX2, AVX512). Report this to the user up front:
+The output lists licensed flavors. Use this to figure out both (a) what `--flavors` values are valid and (b) which edition is running:
+
+- **Only CUDA listed** → free tool, OR paid with a CUDA-only license. Functionally CUDA-only either way. If the user later asks to read the generated `.cu`, fall back to the secondary check below to know whether they can.
+- **OMP / HIP / AVX listed** → paid standalone with the corresponding licenses. Source output is available.
+
+Report this back to the user up front:
 
 > Hybridizer at `<path>` reports licensed flavors: **CUDA, OMP**. (Anything not on this list will fail at transcode time — don't pass it to `--flavors`.)
 
-Only invoke flavors that appear in the license. If the user's request involves an unlicensed flavor, stop and tell them — don't try and let it fail downstream.
+**Secondary check (only if it matters whether output is source-readable):** inspect `hybridizer.generated.cpp` after the first build. If it starts with `char __hybridizer_cubin_module_data[]`, the user is on the free tool — the generated CUDA isn't human-readable. If it's real `#include` + `__global__` C++, they're on the paid standalone.
 
 ## Step 3 — Gather build context
 
@@ -68,7 +79,11 @@ The `nvcc` command line is compiling both `generated-cuda/hybridizer.all.cuda.cu
 
 ### Symptom: `--flavors <X>` rejected at transcode
 
-If `$HYB` errors out with a flavor-not-licensed message, the flavor isn't in `--display-license-details`. Confirm with the user which flavors they actually need; if they need one they don't have, that's a licensing issue, not a build issue — stop and report.
+If `$HYB` errors out with a flavor-not-licensed message, the flavor isn't in `--display-license-details`. Confirm with the user which flavors they actually need; if they need one they don't have, that's a licensing issue, not a build issue — stop and report. If `<X>` is OMP / HIP / AVX and the user is on the free NuGet tool, they need the paid standalone, not just a flag change.
+
+### Symptom: user wants to read or hand-tweak the generated `.cu` but it's a cubin wrapper
+
+`hybridizer.generated.cpp` starts with `char __hybridizer_cubin_module_data[]`. Cause: they're on the free NuGet tool, which emits a cubin + wrapper, not source. There's no flag to change this — they need the paid standalone for source-emitting output. Tell them this explicitly; don't pretend a build option exists.
 
 ### Symptom: garbled output / argmax tokens collapse to a constant / "this kernel should work"
 

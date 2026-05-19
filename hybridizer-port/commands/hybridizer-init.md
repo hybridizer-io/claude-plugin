@@ -9,16 +9,20 @@ If `$ARGUMENTS` is non-empty, treat it as the target project name (the `.csproj`
 
 ## What to do
 
-1. **Locate or install the Hybridizer CLI.** Detect in this order:
-   - `which hybridizer` → global tool. Use the invocation `hybridizer`.
-   - `.config/dotnet-tools.json` lists `hybridizer` → local tool. Use `dotnet hybridizer` (run `dotnet tool restore` first if needed).
-   - Neither → **ask the user** which install path to take:
-     - **Quickest** — `dotnet new install Hybridizer.App.Template` then `dotnet new hybridizer-app -n <Project>`. Generates a project with the tool manifest, MSBuild targets, and a sample kernel already wired. Use this when the user has no existing project they need to keep.
-     - **Global tool** — `dotnet tool install --global Hybridizer`. Adds `hybridizer` to `PATH` system-wide.
-     - **Local tool** — `dotnet new tool-manifest && dotnet tool install Hybridizer`. Adds `.config/dotnet-tools.json` to the current repo; invoke as `dotnet hybridizer`.
-     - **Custom path** — user has a `Hybridizer.Application` binary somewhere else (e.g. an internal Hybridizer build). They give us the absolute path; treat that as `$(HybridizerTool)`.
+1. **Locate or install the Hybridizer CLI.** Two editions exist:
+   - **Free NuGet `Hybridizer` tool** — CUDA only, emits cubin + cpp/cu wrapper. Same profiling/debugging features as paid.
+   - **Paid standalone** — all flavors (CUDA / OMP / HIP / AVX / AVX2 / AVX512), emits readable `.cu` / `.cpp` source.
 
-   Record the resolved invocation (e.g. `hybridizer` or `dotnet hybridizer` or `/path/to/Hybridizer.Application`) — this becomes the value of `$(HybridizerTool)` in step 3.
+   Detect in this order:
+   - `which hybridizer` → global free tool. Use the invocation `hybridizer`.
+   - `.config/dotnet-tools.json` lists `hybridizer` → local free tool. Use `dotnet hybridizer` (run `dotnet tool restore` first if needed).
+   - Neither → **ask the user** which install path to take:
+     - **Quickest, CUDA-only** — `dotnet new install Hybridizer.App.Template` then `dotnet new hybridizer-app -n <Project>`. Generates a project with the free tool manifest, MSBuild targets, and a sample kernel already wired. Best when CUDA is the only target and source-inspection isn't needed.
+     - **Free global tool** — `dotnet tool install --global Hybridizer`. CUDA-only, `hybridizer` in `PATH`.
+     - **Free local tool** — `dotnet new tool-manifest && dotnet tool install Hybridizer`. CUDA-only, `dotnet hybridizer`. Reproducible CI builds.
+     - **Paid standalone** — user has a `Hybridizer.Application` binary from a paid license install. They give us the absolute path. Required for OMP / HIP / AVX flavors or for inspecting/modifying the generated CUDA source.
+
+   Record the resolved invocation (e.g. `hybridizer` / `dotnet hybridizer` / `/path/to/Hybridizer.Application`) — this becomes the value of `$(HybridizerTool)` in step 3.
 
 2. **Read the license to learn supported flavors:**
 
@@ -26,7 +30,7 @@ If `$ARGUMENTS` is non-empty, treat it as the target project name (the `.csproj`
    <invocation-from-step-1> --display-license-details
    ```
 
-   Note the licensed flavors (CUDA, OMP, HIP, AVX, AVX2, AVX512). Only scaffold targets for flavors the user has licensed AND wants to use. Don't wire CUDA targets for an OMP-only license — the build will fail at transcode time.
+   Note the licensed flavors (CUDA, OMP, HIP, AVX, AVX2, AVX512). Only scaffold targets for flavors the user has licensed AND wants to use. If only CUDA is listed, the user is on the free tool (or a paid CUDA-only license) — that's fine for a CUDA-only scaffold. If OMP / HIP / AVX appear, the user is on the paid standalone and you can wire those flavors.
 
    Also check the host toolchain:
    - `nvcc -V` succeeds (skip if CUDA isn't licensed/wanted).
@@ -91,7 +95,7 @@ If `$ARGUMENTS` is non-empty, treat it as the target project name (the `.csproj`
 - Scaffold if there's already a working Hybridizer integration — instead inspect it, report findings, and ask what the user actually wants changed.
 - Scaffold a flavor the license doesn't cover. `--display-license-details` is the source of truth.
 - Add a custom MSBuild `<UsingTask>` for invoking Hybridizer. A plain `<Exec>` is the maintained pattern; custom Tasks add maintenance surface for no benefit.
-- Hardcode an absolute path to `Hybridizer.Application` unless the user explicitly chose the "custom path" install option in step 1. The NuGet tool is the default.
+- Promise the user they can read the generated `.cu` if they're on the free NuGet tool — they'll get a cubin wrapper, not source. Source emission requires the paid standalone.
 
 ## Reference
 

@@ -4,27 +4,45 @@ End-to-end flow from `dotnet build` to a runnable satellite DLL.
 
 ## Install the Hybridizer CLI
 
-Hybridizer ships as the **`Hybridizer` NuGet tool** (https://www.nuget.org/packages/Hybridizer). Three install shapes:
+There are **two editions** with the same `--display-license-details`-driven CLI:
 
-| Shape | Install command | Invocation | When to use |
-|---|---|---|---|
-| **Global tool** | `dotnet tool install --global Hybridizer` | `hybridizer` (in `PATH`) | One install, all repos. Easiest for a dev machine. |
-| **Local tool** | `dotnet new tool-manifest && dotnet tool install Hybridizer` | `dotnet hybridizer` (after `dotnet tool restore`) | Tool version pinned per-repo via `.config/dotnet-tools.json`. Required for reproducible CI builds. |
-| **Project template** | `dotnet new install Hybridizer.App.Template` then `dotnet new hybridizer-app -n MyProject` | `dotnet hybridizer` (template installs the local tool for you) | Starting a fresh project — wires manifest, MSBuild targets, and a sample kernel in one shot. |
+### Free NuGet `Hybridizer` tool (https://www.nuget.org/packages/Hybridizer)
 
-The build runtime (CUDA headers, OMP runtime source, builtins XML) ships inside the NuGet package — the tool resolves them automatically. You don't normally need to point `$(HybridizerIncludes)` anywhere; only override if you have a custom build of the transcoder.
+- **Flavors:** CUDA **only**.
+- **Output:** a cubin blob + `cpp`/`cu` wrapper. The generated source is the wrapper, not the kernel — `hybridizer.generated.cpp` starts with `char __hybridizer_cubin_module_data[]`.
+- **Same functionality as paid otherwise** — full profiling, full debugging, `#line` directives in intermediate code. The free tool is NOT a stripped-down debugger-blind variant.
+- **Install** (three shapes):
 
-## License-gated flavors
+| Shape | Install command | Invocation |
+|---|---|---|
+| Global tool | `dotnet tool install --global Hybridizer` | `hybridizer` |
+| Local tool | `dotnet new tool-manifest && dotnet tool install Hybridizer` | `dotnet hybridizer` (after `dotnet tool restore`) |
+| Project template | `dotnet new install Hybridizer.App.Template` then `dotnet new hybridizer-app -n MyProject` | `dotnet hybridizer` (template generates the local manifest) |
+
+### Paid standalone
+
+- **Flavors:** CUDA, OMP, HIP, AVX, AVX2, AVX512 — subject to license.
+- **Output:** readable, modifiable `.cu` / `.cpp` source files. You can inspect what got generated, profile it, hand-tweak it.
+- **Distribution:** outside NuGet (license-holder builds). Invoke via an absolute path to the `Hybridizer.Application` binary.
+
+### Which do I need?
+
+- Free is fine if: CUDA-only target, no need to read or modify the generated `.cu`.
+- Paid is required if: you need OMP / HIP / AVX flavors, OR you want to read/hand-tweak the emitted CUDA source for a hot kernel.
+
+## License + flavor detection
 
 Run:
 
 ```bash
-hybridizer --display-license-details        # global tool
-# or
-dotnet hybridizer --display-license-details # local tool
+$(HybridizerTool) --display-license-details
 ```
 
-The output reports which flavors are licensed (subset of CUDA, OMP, HIP, AVX, AVX2, AVX512). Pass only those to `--flavors`; anything else fails at transcode time. Do this once at scaffold and trust it for the session.
+(`$(HybridizerTool)` is `hybridizer` / `dotnet hybridizer` / absolute path — same flag works on free and paid.)
+
+The output reports which flavors are licensed. Pass only those to `--flavors`; anything else fails at transcode time. If only CUDA is listed, you're either on the free tool or a paid CUDA-only license — functionally CUDA-only either way. If OMP / HIP / AVX appear, you're on the paid standalone with the corresponding licenses.
+
+To distinguish free-cubin from paid-source emission, inspect the first build: `hybridizer.generated.cpp` starting with `char __hybridizer_cubin_module_data[]` → free tool. Real `.cu` source → paid.
 
 ## `Directory.Build.props` — declare the invocation once
 
