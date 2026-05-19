@@ -9,7 +9,7 @@ The plugin bundles:
 - **Slash commands** — `/hybridizer-init`, `/hybridizer-port`, `/hybridizer-review`, `/hybridizer-profile`, `/hybridizer-log`.
 - **An opt-in hook** that appends every porting prompt to `porting-to-hybridizer.md` in your project (off by default; toggle with `/hybridizer-log on`).
 
-The skill is wired with progressive disclosure: `SKILL.md` is short and indexes deeper reference files in `skills/hybridizer-port/references/` that Claude pulls in only when a task touches that topic.
+The skill is wired with progressive disclosure: `SKILL.md` is short and indexes deeper reference files in `hybridizer-port/skills/hybridizer-port/references/` that Claude pulls in only when a task touches that topic.
 
 ## Requirements
 
@@ -51,25 +51,29 @@ This creates a `.hybridizer-log-enabled` flag in the current project; every prom
 ```
 claude-plugin/
 ├── .claude-plugin/
-│   ├── plugin.json
-│   └── marketplace.json
-├── skills/hybridizer-port/
-│   ├── SKILL.md
-│   └── references/
-│       ├── methodology.md
-│       ├── attributes.md
-│       ├── device-code.md
-│       ├── build-pipeline.md
-│       ├── host-launch.md
-│       ├── kernel-patterns.md
-│       ├── reductions.md
-│       ├── graph-capture.md
-│       ├── perf-tuning.md
-│       ├── gotchas.md
-│       └── samples-index.md
-├── agents/
-├── commands/
-└── hooks/
+│   └── marketplace.json          (lists hybridizer-port, source: ./hybridizer-port)
+├── hybridizer-port/              (the plugin itself)
+│   ├── .claude-plugin/
+│   │   └── plugin.json
+│   ├── skills/hybridizer-port/
+│   │   ├── SKILL.md
+│   │   └── references/
+│   │       ├── methodology.md
+│   │       ├── attributes.md
+│   │       ├── device-code.md
+│   │       ├── build-pipeline.md
+│   │       ├── host-launch.md
+│   │       ├── kernel-patterns.md
+│   │       ├── reductions.md
+│   │       ├── graph-capture.md
+│   │       ├── perf-tuning.md
+│   │       ├── gotchas.md
+│   │       └── samples-index.md
+│   ├── agents/
+│   ├── commands/
+│   └── hooks/
+├── README.md
+└── LICENSE
 ```
 
 ## Status
